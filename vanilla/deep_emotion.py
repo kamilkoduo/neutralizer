@@ -3,7 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 
 from modules import data
-from modules.data import JAFFEDataModule
+from modules.data__ import JAFFEDataModule
 
 
 class DeepEmotion(nn.Module):

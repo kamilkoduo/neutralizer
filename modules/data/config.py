@@ -1,0 +1,17 @@
+RANDOM_STATE = 42
+# Data
+
+DATA_RAW_ROOT = '../data/raw'
+
+TEST_SIZE = 0.1
+TRAIN_BATCH = 64
+VALID_BATCH = 1024
+
+RAW_JAFFE_DATA_DIR = './data/raw/jaffe'
+RAW_TFEID_DATA_DIR = './data/raw/tfeid/dfh_gray'
+
+
+# IMG SIZES consts
+IMG_SIZE_DEEP_EMOTION = (48, 48)
+IMG_SIZE_VGG16 = (224, 224)
+IMG_SIZE_DEFAULT = (64, 64)

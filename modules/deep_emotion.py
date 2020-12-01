@@ -5,7 +5,7 @@ from pytorch_lightning.metrics import functional as FM
 
 from modules import data
 from vanilla.deep_emotion import DeepEmotion as DeepEmotionV
-from modules.data import JAFFEDataModule
+from modules.data__ import JAFFEDataModule
 
 
 class DeepEmotion(pl.LightningModule):

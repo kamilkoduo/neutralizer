@@ -16,7 +16,7 @@ import torchvision.models as models
 from torch import nn
 
 from modules import data
-from modules.data import JAFFEDataModule
+from modules.data__ import JAFFEDataModule
 
 
 # todo how to improve this?

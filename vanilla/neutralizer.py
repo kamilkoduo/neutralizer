@@ -4,7 +4,7 @@ import torchvision.models as models
 from torch import nn
 
 from modules import data
-from modules.data import JAFFEDataModule
+from modules.data.jaffe import JAFFEDataModule
 
 
 # todo how to improve this?
@@ -30,17 +30,6 @@ class GrayVGGEncoder(nn.Module):
 
 
 # decoder
-class InterpolateUp(nn.Module):
-    def __init__(self, factor, mode):
-        super(InterpolateUp, self).__init__()
-        self.interp = nn.functional.interpolate
-        self.factor = factor
-        self.mode = mode
-
-    def forward(self, x):
-        t = x.shape[-1]
-        x = self.interp(x, size=t * self.factor, mode=self.mode)
-        return x
 
 
 class GrayVGGDecoder(nn.Module):
@@ -78,7 +67,7 @@ class GrayVGGDecoder(nn.Module):
 # code to test the external model
 
 if __name__ == '__main__':
-    jaffe = JAFFEDataModule(img_size=data.IMG_SIZE_VGG16)
+    jaffe = JAFFEDataModule(img_size=data.config.IMG_SIZE_VGG16)
     jaffe.setup()
     image, desc = jaffe.dataset[0]
 
