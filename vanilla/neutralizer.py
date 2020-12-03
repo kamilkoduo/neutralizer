@@ -8,6 +8,8 @@ from modules.data.jaffe import JAFFEDataModule
 
 
 # todo how to improve this?
+from vanilla.layers import InterpolateUp
+
 
 class GrayVGGEncoder(nn.Module):
     def __init__(self):

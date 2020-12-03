@@ -49,11 +49,8 @@ class ReverseGradModule(nn.Module):
 
 
 if __name__ == '__main__':
-
     model = ReverseGradModule(1)
 
-
-    # inp = torch.rand(3, requires_grad=True)
     inp = torch.tensor([1.0,1.0], requires_grad=True)
     output = model(inp)
     output.sum().backward()
