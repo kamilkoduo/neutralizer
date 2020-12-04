@@ -64,12 +64,11 @@ if __name__ == '__main__':
 
     sebs = SingleExpressionBatchSampler(jaffe, Expression.NEUTRAL, batch_size=10)
     print(len(sebs))
-    print(sebs.batch_size)
-    print(sebs.indices[0:0 + sebs.batch_size])
 
     for s in iter(sebs):
         print(s)
         print([jaffe[i]['desc']['exp'] for i in s])
+        print()
 
     # smp = ExpressionBatchSampler(batch_size=10, dataset=jaffe)
     # for s in smp:

@@ -159,53 +159,61 @@ class CommonDataModule(pl.LightningDataModule):
         return self.split_ind_dataloader(self.train_split_ind)
 
     # def val_dataloader(self):
-    #     return DataLoader(self.jaffe_val, batch_size=self.batch_size)
+    #     return self.split_ind_dataloader(self.test_split_ind)
 
     def test_dataloader(self):
-        return self.split_ind_dataloader(self.train_split_ind)
+        return self.split_ind_dataloader(self.test_split_ind)
 
 
 from torch.utils.data.sampler import SequentialSampler, BatchSampler, Sampler
 
 
-class SingleExpressionBatchSampler(Sampler):
-    def __init__(self, dataset: CommonDataset,  expression: Expression, batch_size, subset_ind=None, drop_last=False):
-        super().__init__(dataset)
-        self.indices = dataset.exp_indices(expression=expression, subset_ind=subset_ind)
-
-        self.batch_size = batch_size
-        self.drop_last = drop_last
-
-    def __len__(self):
-        if self.drop_last:
-            return len(self.indices) // self.batch_size
-        else:
-            return (len(self.indices) + self.batch_size - 1) // self.batch_size
+class IndexSampler(Sampler):
+    def __init__(self, indices):
+        super().__init__(())
+        self.indices = indices
 
     def __iter__(self):
-        k = 0
-        while k + self.batch_size < self.__len__():
-            yield self.indices[k:k + self.batch_size]
-            k += self.batch_size
-        if k < len(self) and not self.drop_last:
-            yield self.indices[k:]
+        return iter(self.indices)
+
+    def __len__(self):
+        return len(self.indices)
+
+
+class SingleExpressionBatchSampler(Sampler):
+    def __init__(self, dataset: CommonDataset, expression: Expression, batch_size, subset_ind=None, drop_last=False):
+        super().__init__(dataset)
+
+        indices = dataset.exp_indices(expression=expression, subset_ind=subset_ind)
+
+        self.sampler = BatchSampler(IndexSampler(indices), batch_size, drop_last)
+
+    def __len__(self):
+        return len(self.sampler)
+
+    def __iter__(self):
+        return iter(self.sampler)
 
 
 class ExpressionBatchSampler(Sampler):
     def __init__(self, dataset: CommonDataset, batch_size, subset_ind=None, drop_last=False):
         super().__init__(dataset)
-        self.samplers = [SingleExpressionBatchSampler(dataset,exp, batch_size=batch_size, subset_ind=subset_ind, drop_last=drop_last) for exp in
-                         Expression]
+        self.samplers = [
+            SingleExpressionBatchSampler(dataset=dataset, expression=exp, batch_size=batch_size, subset_ind=subset_ind,
+                                         drop_last=drop_last)
+            for exp in Expression
+        ]
 
     def __iter__(self):
         has_undone = {exp: self.samplers[exp] for exp in Expression}
         while not has_undone:
+            print(has_undone)
             for exp in Expression:
                 try:
                     yield next(has_undone[exp])
                 except StopIteration:
+                    print("ITS HAPPENING!")
                     del has_undone[exp]
 
     def __len__(self):
         return sum([len(s) for s in self.samplers])
-
