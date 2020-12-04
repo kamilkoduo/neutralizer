@@ -141,10 +141,10 @@ class CommonDataModule(pl.LightningDataModule):
         if scenario == 'exp' or scenario is None:
             self.train_split_ind, self.test_split_ind = self.dataset.exp_split_ind()
 
-        if scenario == 'train':
+        elif scenario == 'train':
             self.train_split_ind = range(len(self.dataset))
 
-        if scenario == 'test':
+        elif scenario == 'test':
             self.test_split_ind = range(len(self.dataset))
 
     def split_ind_dataloader(self, split_ind):
@@ -154,6 +154,8 @@ class CommonDataModule(pl.LightningDataModule):
                 return DataLoader(dataset=self.dataset, sampler=sampler, num_workers=self.num_workers)
 
             return DataLoader(Subset(self.dataset, split_ind), batch_size=self.batch_size, num_workers=self.num_workers)
+
+        return None
 
     def train_dataloader(self):
         return self.split_ind_dataloader(self.train_split_ind)
