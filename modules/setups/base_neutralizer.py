@@ -10,16 +10,19 @@ from vanilla.base_neutralizer import BaseDecoder, BaseEncoder
 from torch.nn import MSELoss, ModuleList
 
 HPARAMS_DEFAULT = {
-    'image_size': 256,
+    'image_size': 64,
     'conv_dim': 8,
     'leaky_relu': .001,
     'lr': .001,
-    'beta1': .45,
-    'beta2': .1,
-    'batch_size': 80,
+    'batch_size': 30,
     'interpolation_mode': 'bicubic'
 }
-import numpy as np
+
+
+def fix_dim(tensor: torch.Tensor):
+    if len(tensor.size()) == 3:
+        return torch.unsqueeze(tensor, 1)
+    return tensor
 
 
 class BaseNeutralizer(pl.LightningModule):
@@ -35,44 +38,60 @@ class BaseNeutralizer(pl.LightningModule):
 
         self.exp = 0
 
-    def forward(self, x):
-        latent = self.encoder(x)
-        neutralized = self.decoder(latent)
 
-        return {
-            'latent': latent,
-            'neutralized': neutralized
-        }
+    def forward(self, sample):
+        image, desc, neutrals = sample
 
-    def compute(self, batch):
-        image = batch['image']
-        desc = batch['desc']
+        image = fix_dim(image)
+
+        latents = [self.encoders[exp.value](image) for exp in Expression]
+
+        neutralized = [self.decoder(l) for l in latents]
+
+        losses = [torch.stack([self.loss(fix_dim(n), nd) for n in neutrals]).mean() for nd in neutralized]
+
+        ind = torch.argmin(torch.stack(losses))
+
+        return latents[int(ind)], neutralized[int(ind)], ind
+
+    def compute_loss(self, batch):
+        image, desc, neutrals = batch
         label = desc['exp']
-        neutrals = desc['neutral']
 
-        print(f'warning: incorrect batch given: {label}')
+        # todo: check
+        # print(f'warning: incorrect batch given: {label}')
 
-        latent = [self.encoders[l](image[idx]) for idx, l in enumerate(label)]
-
+        latent = self.encoders[label[0]](image)
         neutralized = self.decoder(latent)
 
-        loss = self.loss(neutrals, neutralized)
+        loss = torch.stack([self.loss(n, neutralized) for n in neutrals]).mean()
 
         return loss
 
     def training_step(self, batch, batch_idx):
-        loss = self.compute(batch)
+        loss = self.compute_loss(batch)
 
-        self.log('train_loss', loss)
+        self.log('train/loss', loss)
+
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        loss = self.compute_loss(batch)
+
+        self.log('val/loss', loss)
 
         return loss
 
-    def test_step(self, batch, batch_idx):
-        loss = self.compute(batch)
+    # def test_step(self, batch, batch_idx):
+    # loss = self.compute_loss(batch)
+    #
+    # self.log('test/loss', loss)
+    #
+    #
+    #
+    # print(self.forward())
 
-        self.log('test_loss', loss)
-
-        return loss
+    # return loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams['lr'])
@@ -84,13 +103,25 @@ if __name__ == '__main__':
 
     hparams = HPARAMS_DEFAULT
 
-    jaffe_dm = JAFFEDataModule(batch_aligned=True, batch_size=hparams['batch_size'], img_size=data.config.IMG_SIZE_DEFAULT)
-    jaffe_dm.setup(neutral=True, scenario='exp')
+    jaffe_dm = JAFFEDataModule(neutral=True, batch_aligned=True, batch_size=hparams['batch_size'],
+                               img_size=data.config.IMG_SIZE_DEFAULT)
+    jaffe_dm.setup(scenario='exp')
 
     model = BaseNeutralizer()
 
     # trainer = pl.Trainer(gpus=-1, max_epochs=6)
-    trainer = pl.Trainer(max_epochs=2, row_log_interval=1)
+    trainer = pl.Trainer(max_epochs=1000)
     trainer.fit(model, jaffe_dm)
 
-    trainer.test(model, test_dataloaders=jaffe_dm.val_dataloader())
+    # trainer.test(model, test_dataloaders=jaffe_dm.test_dataloader())
+
+    correct = 0
+    all = 0
+    for sample in jaffe_dm.test_dataloader():
+        l, n, exp = model.forward(sample)
+        if exp == sample[1]['exp']:
+            correct += 1
+        all += 1
+
+    accuracy = correct / all
+    print(f'accuracy kostil : {accuracy}')

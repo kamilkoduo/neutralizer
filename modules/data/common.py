@@ -1,3 +1,5 @@
+import random
+
 import skimage
 from PIL import Image
 from torchvision.transforms import transforms
@@ -85,13 +87,11 @@ class CommonDataset(Dataset):
         image = self.read_image(idx)
         desc = self.descriptions[idx]
 
-        result = {
-            'image': image,
-            'desc': desc,
-        }
+        result = image, desc
 
         if 'neutral' in desc:
-            result['neutral'] = [self.read_image(idx) for idx in desc['neutral']]
+            neutrals = [self.read_image(idx) for idx in desc['neutral']]
+            result = *result, neutrals
 
         return result
 
@@ -118,7 +118,7 @@ class CommonDataset(Dataset):
 
 
 class CommonDataModule(pl.LightningDataModule):
-    def __init__(self, dataset_class, batch_aligned=False, neutral=False, batch_size=32,
+    def __init__(self, dataset_class, batch_aligned=False, neutral=False, batch_size=1,
                  img_size=config.IMG_SIZE_DEFAULT, num_workers=16):
         super().__init__()
         self.dataset_class = dataset_class
@@ -136,7 +136,7 @@ class CommonDataModule(pl.LightningDataModule):
     def prepare_data(self):
         pass
 
-    def setup(self, neutral=False, scenario=None, stage=None):
+    def setup(self, scenario=None, stage=None):
 
         if scenario == 'exp' or scenario is None:
             self.train_split_ind, self.test_split_ind = self.dataset.exp_split_ind()
@@ -151,20 +151,20 @@ class CommonDataModule(pl.LightningDataModule):
         if split_ind is not None:
             if self.batch_aligned:
                 sampler = ExpressionBatchSampler(self.dataset, subset_ind=split_ind, batch_size=self.batch_size)
-                return DataLoader(dataset=self.dataset, sampler=sampler, num_workers=self.num_workers)
-
-            return DataLoader(Subset(self.dataset, split_ind), batch_size=self.batch_size, num_workers=self.num_workers)
+                return DataLoader(dataset=self.dataset, batch_sampler=sampler, num_workers=self.num_workers)
+            else:
+                return DataLoader(Subset(self.dataset, split_ind), batch_size=self.batch_size, num_workers=self.num_workers)
 
         return None
 
     def train_dataloader(self):
         return self.split_ind_dataloader(self.train_split_ind)
 
-    # def val_dataloader(self):
-    #     return self.split_ind_dataloader(self.test_split_ind)
+    def val_dataloader(self):
+        return self.split_ind_dataloader(self.test_split_ind)
 
     def test_dataloader(self):
-        return self.split_ind_dataloader(self.test_split_ind)
+        return DataLoader(Subset(self.dataset, self.test_split_ind), num_workers=self.num_workers)
 
 
 from torch.utils.data.sampler import SequentialSampler, BatchSampler, Sampler
@@ -207,15 +207,21 @@ class ExpressionBatchSampler(Sampler):
         ]
 
     def __iter__(self):
-        has_undone = {exp: self.samplers[exp] for exp in Expression}
-        while not has_undone:
-            print(has_undone)
-            for exp in Expression:
-                try:
-                    yield next(has_undone[exp])
-                except StopIteration:
-                    print("ITS HAPPENING!")
-                    del has_undone[exp]
+        iters = {
+            exp: iter(self.samplers[exp])
+            for exp in Expression
+        }
+        while True:
+            # Feel free to use the sequential strategy
+            current_exp, current_iter = random.choice(list(iters.items()))
+            try:
+                batch = next(current_iter)
+                yield batch
+            except StopIteration:
+                del iters[current_exp]
+
+            if len(iters) == 0:
+                break
 
     def __len__(self):
-        return sum([len(s) for s in self.samplers])
+        return sum(len(s) for s in self.samplers)
