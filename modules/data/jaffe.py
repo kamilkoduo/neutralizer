@@ -46,7 +46,7 @@ class JAFFEDataset(CommonDataset):
 
 
 class JAFFEDataModule(CommonDataModule):
-    def __init__(self, neutral = False, batch_aligned=False, batch_size=None, img_size=config.IMG_SIZE_DEFAULT, num_workers=16):
+    def __init__(self, neutral = False, batch_aligned=False, batch_size=None, img_size=config.IMG_SIZE_DEFAULT, num_workers=15):
 
         super().__init__(dataset_class=JAFFEDataset, neutral= neutral,batch_aligned=batch_aligned, batch_size=batch_size,
                          img_size=img_size, num_workers=num_workers)

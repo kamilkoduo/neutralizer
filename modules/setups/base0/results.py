@@ -2,11 +2,11 @@ from modules.setups.base_neutralizer import *
 
 import pandas as pd
 
-logdir = 'lightning_logs/version_86'
+logdir = 'lightning_logs/version_85'
 
 if __name__ == '__main__':
 
-    model = BaseNeutralizer.load_from_checkpoint(f'{logdir}/checkpoints/epoch=80.ckpt')
+    model = BaseNeutralizer.load_from_checkpoint(f'{logdir}/checkpoints/epoch=163.ckpt')
     model.eval()
 
     jaffe_dm = JAFFEDataModule(neutral=True,
